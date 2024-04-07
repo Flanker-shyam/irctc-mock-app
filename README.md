@@ -66,16 +66,11 @@ For Linux
     
   </li>
 </ul>
-  <li>Run and test</li>
- Run this project
- <ul>
-   <li>To run
+  <li>Run this project</li>
      
   ```bash
   npm run start
   ```
-   </li>
- </ul>
 </ol>
 
 </div>
