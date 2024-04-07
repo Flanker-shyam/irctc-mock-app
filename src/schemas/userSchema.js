@@ -2,7 +2,8 @@ async function createUserTable(client) {
   const query = `
     CREATE TABLE IF NOT EXISTS users(
         id SERIAL PRIMARY KEY,
-        email varchar(255) NOT NULL,
+        name varchar(255) NOT NULL,
+        email varchar(255) NOT NULL UNIQUE,
         password varchar(255)NOT NULL,
         created_at TIMESTAMP DEFAULT NOW()
     )`;

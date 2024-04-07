@@ -5,6 +5,7 @@ const router = express.Router();
 const helmet = require("helmet");
 const bodyParser = require("body-parser");
 const validator = require("../validations/schemaValidators");
+const pool = require("../database/createPool");
 
 router.use(bodyParser.urlencoded({ extended: true }));
 router.use(helmet());
@@ -19,7 +20,7 @@ router.post("/", async (req, res) => {
   const client = await pool.connect();
   try {
     const query = `SELECT * FROM users WHERE email = $1`;
-    const { rows } = await client.query(query, [rrq.body.email]);
+    const { rows } = await client.query(query, [req.body.email]);
     const foundUser = rows[0];
 
     if (foundUser) {

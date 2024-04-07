@@ -7,6 +7,7 @@ const helmet = require("helmet");
 const bodyParser = require("body-parser");
 const validator = require("../validations/schemaValidators");
 require("dotenv").config();
+const pool = require("../database/createPool");
 
 router.use(bodyParser.urlencoded({ extended: true }));
 router.use(helmet());

@@ -2,6 +2,7 @@ async function createTrainTable(client) {
     const query = `
       CREATE TABLE IF NOT EXISTS trains(
           id SERIAL PRIMARY KEY,
+          name varchar(255) NOT NULL UNIQUE,
           source varchar(255) NOT NULL,
           destination varchar(255) NOT NULL,
           seats_counter integer NOT NULL,
