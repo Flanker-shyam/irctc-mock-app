@@ -2,10 +2,17 @@ const helmet = require("helmet");
 const express = require("express");
 const app = express();
 const connectDB = require("./database/connectDB");
-
+const rateLimit = require("express-rate-limit");
 require("dotenv").config();
 
-// //routes
+const limiter = rateLimit({
+    windowMs:15*60*1000,
+    max:100,
+    message:"Too many requests from this IP, please try again after some time"
+})
+
+app.use(limiter);
+
 const registerRoute = require("../src/routes/register");
 const loginRoute = require("../src/routes/login");
 const bookTrainRoute = require("../src/routes/bookTrain");
