@@ -5,6 +5,8 @@ const bodyParser = require("body-parser");
 const validator = require("../validations/schemaValidators");
 const userAuth = require("../middlewares/userAuth");
 const pool = require("../database/createPool");
+const isLockError = require("../helpers/detectLockError");
+const retry = require("async-retry");
 
 router.use(bodyParser.urlencoded({ extended: true }));
 router.use(helmet());
@@ -43,37 +45,53 @@ router.post("/", userAuth, async (req, res) => {
   }
   const client = await pool.connect();
   try {
-    const getTrainQuery = `SELECT * FROM trains WHERE id = $1`;
-    const { rows } = await client.query(getTrainQuery, [req.body.train_id]);
-    const train = rows[0];
-    if (!train) {
-      res.status(400).send("Train not found, kindly enter a valid train id");
-      return;
-    }
-    if (train.seats_available - req.body.seats < 0) {
-      res
-        .status(400)
-        .send(
-          `${req.body.seats} number of seats are not available for this train chose a different train`
-        );
-      return;
-    }
+    await retry(
+      async () => {
+        const getTrainQuery = `SELECT * FROM trains WHERE id = $1 FOR UPDATE`;
+        const { rows } = await client.query(getTrainQuery, [req.body.train_id]);
+        const train = rows[0];
+        if (!train) {
+          res
+            .status(400)
+            .send("Train not found, kindly enter a valid train id");
+          return;
+        }
+        if (train.seats_available - req.body.seats < 0) {
+          res
+            .status(400)
+            .send(
+              `${req.body.seats} number of seats are not available for this train chose a different train`
+            );
+          return;
+        }
 
-    client.query("BEGIN");
-    const updateTrainQuery = `UPDATE trains SET seats_available = $1, seats_counter = $2 WHERE id = $3`;
-    const updateValues = [
-      train.seats_available - req.body.seats,
-      train.seats_counter + req.body.seats,
-      req.body.train_id,
-    ];
-    const bookingQuery = `INSERT INTO bookings(train_id, seats, user_id) VALUES($1,$2,$3)`;
-    const seat_num = `${train.seats_counter+1}-${
-      train.seats_counter + req.body.seats
-    }`;
-    const bookingValues = [req.body.train_id, seat_num, req.body.user_id];
-    client.query(updateTrainQuery, updateValues);
-    client.query(bookingQuery, bookingValues);
-    client.query("COMMIT");
+        client.query("BEGIN");
+        const updateTrainQuery = `UPDATE trains SET seats_available = $1, seats_counter = $2 WHERE id = $3`;
+        const updateValues = [
+          train.seats_available - req.body.seats,
+          train.seats_counter + req.body.seats,
+          req.body.train_id,
+        ];
+        const bookingQuery = `INSERT INTO bookings(train_id, seats, user_id) VALUES($1,$2,$3)`;
+        const seat_num = `${train.seats_counter + 1}-${
+          train.seats_counter + req.body.seats
+        }`;
+        const bookingValues = [req.body.train_id, seat_num, req.body.user_id];
+        client.query(updateTrainQuery, updateValues);
+        client.query(bookingQuery, bookingValues);
+        client.query("COMMIT");
+      },
+      {
+        retries: 3,
+        factor: 2,
+        minTimeout: 1000,
+        maxTimeout: 5000,
+        onRetry: (err, attempt) => {
+          console.warn("Transaction failed due to lock error, retrying...", err);
+        },
+        retryOnError: (err) => isLockError(err),
+      }
+    );
     res.status(200).send("Train booked successfully");
   } catch (err) {
     console.error(`Error booking seats: ${err}`);

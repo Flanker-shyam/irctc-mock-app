@@ -9,9 +9,13 @@ async function createTrainTable(client) {
           seats_available integer NOT NULL,
           created_at TIMESTAMP DEFAULT NOW()
       )`;
+
+      const index_query = `
+      CREATE INDEX IF NOT EXISTS idx_train_src_dest ON trains(source,destination)`
   
     try {
       const result = await client.query(query);
+      await client.query(index_query);
       if (result.command === 'CREATE') {
         console.log("Train table created successfully");
       } else {
